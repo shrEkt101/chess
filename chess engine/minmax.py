@@ -1,4 +1,6 @@
 import copy
+import csv
+
 
 class tictactoe:
     def __init__(self) -> None:
@@ -59,7 +61,6 @@ class tictactoe:
             print(row)
 
 def minmax(board: tictactoe, player, depth):
-    assert board.turn == player
     #base case: the game ends
     state = board.check_winner()
     if state == 1:
@@ -143,24 +144,123 @@ def minmax(board: tictactoe, player, depth):
 # board.make_move(2,2)
 # print(board.check_winner())
 
+def board_to_tuple(board):
+    return (tuple(board[0]),tuple(board[1]),tuple(board[2]))
+
+def minmaxtable(board: tictactoe, player, depth, table):
+    # assert board.turn == player
+    state = board.check_winner()
+    if state == 1:
+        return (2, None)
+    elif state == -1:
+        return (-2, None)
+    elif state == "draw":
+        return (0, None)
+    
+    if player == 1:
+        best_score = -100
+        best_move = None
+        for move in board.possible_moves():
+            new = copy.deepcopy(board)
+            new.make_move(move[0],move[1])
+
+            if board_to_tuple(board.board) in table:
+                return table[board_to_tuple(board.board)]
+            
+            score = minmaxtable(new, -player, depth+1, table)[0]
+            if score > best_score:
+                best_score = score
+                best_move = move
+
+        if board_to_tuple(board.board) not in table:
+            table[board_to_tuple(board.board)] = (best_score,best_move, depth)
+
+        return (best_score, best_move)
+    else:
+        best_score = 100
+        best_move = None
+        for move in board.possible_moves():
+            new = copy.deepcopy(board)
+            new.make_move(move[0],move[1])
+
+            if board_to_tuple(board.board) in table:
+                return table[board_to_tuple(board.board)]
+
+            score = minmaxtable(new, -player, depth+1, table)[0]
+            if score < best_score:
+                best_score = score
+                best_move = move
+            
+        if board_to_tuple(board.board) not in table:
+            table[board_to_tuple(board.board)] = (best_score, best_move, depth)
+
+        return (best_score, best_move, depth)
+
+
+
+def export_table_to_csv(table, filename='minmax_table.csv'):
+    with open(filename, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Board State', 'Score', 'Best Move', 'Depth'])
+
+        for board_state, (score, move, depth) in table.items():
+            writer.writerow([str(board_state), score, move, depth])
+
+
 
 def play():
     board = tictactoe()
-    turn = 1
-    while board.check_winner() == None:
-        print("\n")
+    humangoesfirst = False
+    table = {}
+
+    if humangoesfirst:
+        print("human goes first")
+        turn = 1
+        while board.check_winner() == None:
+            print("\n")
+            board.show_board()
+            print("\n")
+            if turn == 1:
+                move = input("enter a move in the format row,col: ")
+                move = move.strip().split(",")
+                board.make_move(int(move[0]), int(move[1]))
+            else:
+                move = minmaxtable(board, turn, 0, table)[1]
+                board.make_move(move[0], move[1])
+            
+            turn *= -1
         board.show_board()
-        print("\n")
-        if turn == 1:
-            move = input("enter a move in the format row,col: ")
-            move = move.strip().split(",")
-            # print(move)
-            board.make_move(int(move[0]), int(move[1]))
-        else:
-            move = minmax(board, turn, 0)[1]
-            board.make_move(move[0], move[1])
-        
-        turn *= -1
-    board.show_board()
+    else:
+        print("bot goes first")
+        turn = 1
+        while board.check_winner() == None:
+            print("\n")
+            board.show_board()
+            print("\n")
+            if turn != 1:
+                move = input("enter a move in the format row,col: ")
+                move = move.strip().split(",")
+                board.make_move(int(move[0]), int(move[1]))
+            else:
+                move = minmaxtable(board, turn, 0, table)[1]
+                board.make_move(move[0], move[1])
+                print("evaluation: {}".format(minmaxtable(board, turn, 0, table)[0]))
+            
+            turn *= -1
+        board.show_board()
 
 play()
+
+# board = tictactoe()
+# table = {}
+# minmaxtable(board, 1, 0, table)
+# export_table_to_csv(table, "tictactoeTable.csv")
+
+# board = tictactoe()
+# board.make_move(1,1)
+# board.make_move(0,0)
+# board.make_move(1,1)
+# board.make_move(2,2)
+# board.make_move(2,0)
+# board.show_board()
+# print(minmax(board, 1, 0))
